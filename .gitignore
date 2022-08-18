@@ -1,0 +1,4 @@
+*.o
+*.d
+part1_tester
+chfs_client

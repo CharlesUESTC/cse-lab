@@ -38,6 +38,7 @@ class block_manager {
   std::map <uint32_t, int> using_blocks;
  public:
   block_manager();
+  ~block_manager();
   struct superblock sb;
 
   uint32_t alloc_block();
@@ -84,6 +85,7 @@ class inode_manager {
 
  public:
   inode_manager();
+  ~inode_manager();
   uint32_t alloc_inode(uint32_t type);
   void free_inode(uint32_t inum);
   void read_file(uint32_t inum, char **buf, int *size);
