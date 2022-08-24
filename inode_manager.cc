@@ -192,9 +192,9 @@ inode_manager::inode_manager()
 {
   char buf[BLOCK_SIZE];
   bm = new block_manager();
-//   bm->read_block(FIBBLOCK, buf);
-//   buf[0] |= 0x80;
-//   bm->write_block(FIBBLOCK, buf);
+  bm->read_block(FIBBLOCK, buf);
+  buf[0] |= 0x80;
+  bm->write_block(FIBBLOCK, buf);
   uint32_t root_dir = alloc_inode(extent_protocol::T_DIR);
   if (root_dir != 1) {
     printf("\tim: error! alloc first inode %d, should be 1\n", root_dir);
@@ -243,7 +243,7 @@ inode_manager::alloc_inode(uint32_t type)
   }
 
   if (empty)
-    inum = i * 8 + j + 1;
+    inum = i * 8 + j;
   else {
     printf("No extra inode to allocate.\n");
     exit(1);
@@ -307,7 +307,7 @@ inode_manager::get_inode(uint32_t inum)
 
   printf("\tim: get_inode %d\n", inum);
 
-  if (inum < 0 || inum >= INODE_NUM) {
+  if (inum == 0 || inum >= INODE_NUM) {
     printf("\tim: inum out of range\n");
     return NULL;
   }
@@ -440,7 +440,7 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
   blockid_t *idblocks, new_blk;
   int nblk, org_nblk, offset, cur_blk, stop;
 
-  if (size > MAXFILE * BLOCK_SIZE) {
+  if (size > static_cast<int>(MAXFILE * BLOCK_SIZE)) {
     printf("\tim: file to write exceeds size limit\n");
     exit(1);
   }
