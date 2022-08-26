@@ -569,6 +569,7 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
   }
 
   ino->size = size;
+  ino->atime = (unsigned int) time(NULL);
   ino->mtime = (unsigned int) time(NULL);
   ino->ctime = (unsigned int) time(NULL);
   put_inode(inum, ino);

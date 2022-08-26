@@ -6,6 +6,17 @@
 #include "extent_client.h"
 #include <vector>
 
+const unsigned CHFS_NAME_LEN = 255;
+
+struct chfs_dirent {
+  uint32_t inum;
+  uint16_t rec_len;
+  uint8_t name_len;
+  uint8_t file_type;
+  char name[CHFS_NAME_LEN];
+};
+
+const unsigned CHFS_DIRENT_SIZE = 264;
 
 class chfs_client {
   extent_client *ec;
@@ -29,6 +40,8 @@ class chfs_client {
   struct dirent {
     std::string name;
     chfs_client::inum inum;
+    dirent() = default;
+    dirent(const std::string &s, chfs_client::inum i): name(s), inum(i) { }
   };
 
  private:
@@ -56,5 +69,8 @@ class chfs_client {
   
   /** you may need to add symbolic link related methods here.*/
 };
+
+
+int namecmp(const char *name, const char *ent, uint8_t len);
 
 #endif 
