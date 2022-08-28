@@ -70,7 +70,4 @@ class chfs_client {
   /** you may need to add symbolic link related methods here.*/
 };
 
-
-int namecmp(const char *name, const char *ent, uint8_t len);
-
 #endif 

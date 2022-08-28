@@ -138,6 +138,8 @@ int
 chfs_client::setattr(inum ino, size_t size)
 {
     int r = OK;
+    extent_protocol::attr a;
+    std::string sbuf;
 
     /*
      * your code goes here.
@@ -145,6 +147,33 @@ chfs_client::setattr(inum ino, size_t size)
      * according to the size (<, =, or >) content length.
      */
 
+    if (ec->getattr(ino, a) != extent_protocol::OK) {
+        r = IOERR;
+        goto release;
+    }
+    if (a.type != extent_protocol::T_FILE) {
+        printf("setattr with size: %lld is not a file\n", ino);
+        r = NOENT;
+        goto release;
+    } 
+
+    if (size == a.size)
+        goto release;
+
+    if (ec->get(ino, sbuf) != extent_protocol::OK) {
+        r = IOERR;
+        goto release;
+    }
+    if (size < a.size)
+        sbuf.erase(size);
+    else
+        sbuf.append(size - a.size, '\0');
+    if (ec->put(ino, sbuf) != extent_protocol::OK) {
+        r = IOERR;
+        goto release;
+    }
+
+release:
     return r;
 }
 
@@ -189,7 +218,7 @@ chfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
 
     while (pcur < cdir + dsize) {
         pdir = (const chfs_dirent *) pcur;
-        if (namecmp(name, pdir->name, pdir->name_len) == 0) {
+        if (strncmp(name, pdir->name, pdir->name_len) == 0) {
             r = EXIST;
             goto release;
         }
@@ -270,7 +299,7 @@ chfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out)
 
     while (pcur < cdir + dsize) {
         pdir = (const chfs_dirent *) pcur;
-        if (namecmp(name, pdir->name, pdir->name_len) == 0) {
+        if (strncmp(name, pdir->name, pdir->name_len) == 0) {
             ino_out = pdir->inum;
             found = true;
             break;
@@ -326,7 +355,21 @@ chfs_client::read(inum ino, size_t size, off_t off, std::string &data)
      * your code goes here.
      * note: read using ec->get().
      */
+    if (!isfile(ino)) {
+        r = NOENT;
+        goto release;
+    }
+    if (ec->get(ino, data) != extent_protocol::OK) {
+        r = IOERR;
+        goto release;
+    }
 
+    if (static_cast<long unsigned>(off) > data.size())
+        data = "";
+    else
+        data = data.substr(off, size);
+
+release:
     return r;
 }
 
@@ -335,13 +378,37 @@ chfs_client::write(inum ino, size_t size, off_t off, const char *data,
         size_t &bytes_written)
 {
     int r = OK;
+    std::string sbuf;
 
     /*
      * your code goes here.
      * note: write using ec->put().
      * when off > length of original file, fill the holes with '\0'.
      */
+    if (!isfile(ino)) {
+        r = NOENT;
+        goto release;
+    }
+    if (ec->get(ino, sbuf) != extent_protocol::OK) {
+        r = IOERR;
+        goto release;
+    }
 
+    bytes_written = size;
+    if (static_cast<long unsigned>(off) < sbuf.size())
+        sbuf.erase(off, size);
+    else if (static_cast<long unsigned>(off) > sbuf.size()) {
+        sbuf.append(off - sbuf.size(), '\0');
+        bytes_written += off - sbuf.size();
+    }
+    sbuf.insert(off, data, size);
+
+    if (ec->put(ino, sbuf) != extent_protocol::OK) {
+        r = IOERR;
+        goto release;
+    }
+
+release:
     return r;
 }
 
@@ -356,19 +423,4 @@ int chfs_client::unlink(inum parent,const char *name)
      */
 
     return r;
-}
-
-int namecmp(const char *name, const char *ent, uint8_t len)
-{
-    const char *s = ent;
-    unsigned char c1, c2;
-
-    for (; ;) {
-        c1 = *name++;
-        c2 = *s++;
-        if (c1 != c2)
-            return c1 < c2 ? -1 : 1;
-        if (s == ent + len)
-            return *name ? 1 : 0;
-    }
 }
